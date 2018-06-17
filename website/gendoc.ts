@@ -21,64 +21,10 @@
 */
 // tslint:disable:object-literal-sort-keys
 import * as assert from "assert";
-import { execSync, spawnSync } from "child_process";
-import * as fs from "fs";
 import * as path from "path";
 import * as ts from "typescript";
-import { log } from "../src/util";
-import { ArgEntry, DocEntry } from "../website/docs";
-
-const repoBasePath = path.resolve(__dirname, "..");
-const repoBaseUrl = "https://github.com/propelml/propel";
-
-const fileGithubUrls = new Map<string, string>();
-
-function getGithubUrlForFile(fileName: string) {
-  if (fileGithubUrls.has(fileName)) {
-    return fileGithubUrls.get(fileName);
-  }
-
-  const relName = path.relative(repoBasePath, fileName).replace(/\\/g, "/");
-
-  // Sanity check: verify that the file in it's current form has been
-  // committed.
-  let stdout = execSync(`git status --porcelain -- "${fileName}"`, {
-    cwd: path.dirname(fileName),
-    encoding: "utf8"
-  });
-  if (/\S/.test(stdout)) {
-    throw new Error(`File has been modified since last commit: ${relName}.`);
-  }
-
-  // Get the commit hash for that most recent commit that updated a file.
-  // This is done to reduce churn in the generated documentation; as long as a
-  // file doesn't change, the "source" links in the documentation won't change
-  // either.
-  stdout = execSync(`git log -n1 --pretty="%H" -- "${fileName}"`, {
-    cwd: path.dirname(fileName),
-    encoding: "utf8"
-  });
-  const commitSha = stdout.match(/^\s*([0-9a-fA-F]{40})\s*$/)[1];
-  const githubUrl = `${repoBaseUrl}/blob/${commitSha}/${relName}`;
-
-  // Sanity check: verify that the inferred github url can actually be
-  // loaded.
-  const { status, stderr } = spawnSync(
-    process.execPath,
-    [`${__dirname}/check_url.js`, githubUrl],
-    { encoding: "utf8" }
-  );
-  if (status !== 0) {
-    const msg =
-      `File committed but not available on github: ${relName}\n` +
-      `You probably need to push your branch to github.\n` +
-      stderr;
-    console.warn(msg);
-  }
-
-  fileGithubUrls.set(fileName, githubUrl);
-  return githubUrl;
-}
+import { log } from "./util";
+import { ArgEntry, DocEntry } from "./types";
 
 export function genJSON(): DocEntry[] {
   // Global variables.
@@ -253,6 +199,7 @@ export function genJSON(): DocEntry[] {
 
   function getSourceUrl(node: ts.Node): string {
     const sourceFile = node.getSourceFile();
+    // tslint:disable-next-line:no-any
     const docNodes = (node as any).jsDoc; // No public API for this?
     const startNode = (docNodes && docNodes[0]) || node;
     const [startLine, endLine] = [
@@ -261,8 +208,10 @@ export function genJSON(): DocEntry[] {
     ].map(pos => sourceFile.getLineAndCharacterOfPosition(pos).line + 1);
     const sourceRange =
       endLine > startLine ? `L${startLine}-L${endLine}` : `L${startLine}`;
-    const githubUrl = getGithubUrlForFile(sourceFile.fileName);
-    return `${githubUrl}#${sourceRange}`;
+    // TODO
+    // const githubUrl = getGithubUrlForFile(sourceFile.fileName);
+    // return `${githubUrl}#${sourceRange}`;
+    return "";
   }
 
   function visitClass(node: ts.ClassDeclaration) {
@@ -342,23 +291,8 @@ export function genJSON(): DocEntry[] {
     return "<unknown>";
   }
 
-  gen(repoBasePath + "/src/api.ts", require("../tsconfig.json"));
+  // TODO
+  // gen(, require("../tsconfig.json"));
 
   return output;
-}
-
-export function writeJSON(target = repoBasePath + "/build/website") {
-  const docs = genJSON();
-  const j = JSON.stringify(docs, null, 2);
-  fs.writeFileSync(target, j);
-  console.log("wrote", target);
-}
-
-if (require.main === module) {
-  const target = process.argv[2];
-  if (!target) {
-    console.log("Usage: ts-node tools/gendoc.ts ./website/docs.json");
-    process.exit(1);
-  }
-  writeJSON(target);
 }
