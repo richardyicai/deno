@@ -5,21 +5,24 @@ cache:
    - deno2/js/node_modules/
    - $BUILD_PATH
    - $DEPOT_TOOLS_PATH
+   - $GCLIENT_CACHE
 env:
   global:
     - BUILD_PATH=$HOME/out/Debug
     - DEPOT_TOOLS_PATH=$HOME/depot_tools
+    - GCLIENT_CACHE=$HOME/gclient_cache
 before_install: |
   if ! [ -x $DEPOT_TOOLS_PATH/gclient ]; then
     rm -rf $DEPOT_TOOLS_PATH
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git $DEPOT_TOOLS_PATH
   fi
   python $DEPOT_TOOLS_PATH/update_depot_tools_toggle.py --disable
+  mkdir -p $GCLIENT_CACHE
 install:
  - env
  - export PATH=$PATH:$DEPOT_TOOLS_PATH
  - cd deno2
- - gclient sync --no-history
+ - gclient sync --cache-dir=$GCLIENT_CACHE --no-history
  - (cd js; yarn)
 script:
  - gn gen $BUILD_PATH --args='is_debug=true cc_wrapper="ccache"'
