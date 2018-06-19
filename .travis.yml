@@ -28,6 +28,6 @@ install:
  - gclient sync --cache-dir=$GCLIENT_CACHE --no-history
  - (cd js; yarn)
 script:
- - gn gen $BUILD_PATH --args='is_debug=true cc_wrapper="ccache"'
+ - gn gen $BUILD_PATH --args='cc_wrapper="ccache"'
  - ninja -v -C $BUILD_PATH mock_runtime_test
  - $BUILD_PATH/mock_runtime_test
