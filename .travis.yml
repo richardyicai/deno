@@ -27,7 +27,7 @@ install:
  - cd deno2
  - gclient sync --cache-dir=$GCLIENT_CACHE --no-history
  - (cd js; yarn)
-script:
  - gn gen $BUILD_PATH --args='cc_wrapper="ccache"'
  - ninja -v -C $BUILD_PATH mock_runtime_test
+script:
  - $BUILD_PATH/mock_runtime_test
