@@ -2,35 +2,26 @@ language: c++
 cache:
   ccache: true
   directories:
-   - .cache/
-   - node_modules/
-   - $V8WORKER2_OUT_PATH
+   - deno2/js/node_modules/
+   - $BUILD_PATH
+   - $DEPOT_TOOLS_PATH
 env:
   global:
-    - V8WORKER2_OUT_PATH=$HOME/v8worker2_out
-    - PROTOBUF_ROOT=$HOME/protobuf
+    - BUILD_PATH=$HOME/out/Debug
+    - DEPOT_TOOLS_PATH=$HOME/depot_tools
 before_install: |
-  # protobuf
-  export PATH=$PROTOBUF_ROOT/bin:$PATH
-  if ! [ -x $PROTOBUF_ROOT/bin/protoc ]; then
-    rm -rf $PROTOBUF_ROOT
-    mkdir -p $PROTOBUF_ROOT
-    pushd $PROTOBUF_ROOT
-    wget https://github.com/google/protobuf/releases/download/v3.1.0/protoc-3.1.0-linux-x86_64.zip
-    unzip protoc-3.1.0-linux-x86_64.zip
-    popd
+  if ! [ -x $DEPOT_TOOLS_PATH/gclient ]; then
+    rm -rf $DEPOT_TOOLS_PATH
+    git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git $DEPOT_TOOLS_PATH
   fi
+  python $DEPOT_TOOLS_PATH/update_depot_tools_toggle.py --disable
 install:
- - mkdir -p $GOPATH/src/github.com/ry
- - ln -s `pwd` $GOPATH/src/github.com/ry/deno
  - env
- - go get -d github.com/ry/v8worker2
- - $GOPATH/src/github.com/ry/v8worker2/build.py --use_ccache --out_path $V8WORKER2_OUT_PATH
- - go get -u github.com/golang/protobuf/proto
- - go get -u github.com/spf13/afero
- - go get -u github.com/golang/protobuf/protoc-gen-go
- - go get -u github.com/jteeuwen/go-bindata/...
- - yarn
+ - export PATH=$PATH:$DEPOT_TOOLS_PATH
+ - cd deno2
+ - gclient sync --no-history
+ - (cd js; yarn)
 script:
- - make lint
- - make test
+ - gn gen $BUILD_PATH --args='is_debug=true cc_wrapper="ccache"'
+ - ninja -j 1 -C $BUILD_PATH mock_runtime_test
+ - $BUILD_PATH/mock_runtime_test
